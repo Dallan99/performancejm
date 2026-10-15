@@ -10,33 +10,63 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BasesRouteImport } from './routes/bases'
+import { Route as HistoricoRouteImport } from './routes/historico'
+import { Route as ImportacoesRouteImport } from './routes/importacoes'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BasesRoute = BasesRouteImport.update({
+  id: '/bases',
+  path: '/bases',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoricoRoute = HistoricoRouteImport.update({
+  id: '/historico',
+  path: '/historico',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportacoesRoute = ImportacoesRouteImport.update({
+  id: '/importacoes',
+  path: '/importacoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bases': typeof BasesRoute
+  '/historico': typeof HistoricoRoute
+  '/importacoes': typeof ImportacoesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bases': typeof BasesRoute
+  '/historico': typeof HistoricoRoute
+  '/importacoes': typeof ImportacoesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bases': typeof BasesRoute
+  '/historico': typeof HistoricoRoute
+  '/importacoes': typeof ImportacoesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/bases' | '/historico' | '/importacoes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/bases' | '/historico' | '/importacoes'
+  id: '__root__' | '/' | '/bases' | '/historico' | '/importacoes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BasesRoute: typeof BasesRoute
+  HistoricoRoute: typeof HistoricoRoute
+  ImportacoesRoute: typeof ImportacoesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +78,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bases': {
+      id: '/bases'
+      path: '/bases'
+      fullPath: '/bases'
+      preLoaderRoute: typeof BasesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/historico': {
+      id: '/historico'
+      path: '/historico'
+      fullPath: '/historico'
+      preLoaderRoute: typeof HistoricoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/importacoes': {
+      id: '/importacoes'
+      path: '/importacoes'
+      fullPath: '/importacoes'
+      preLoaderRoute: typeof ImportacoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BasesRoute: BasesRoute,
+  HistoricoRoute: HistoricoRoute,
+  ImportacoesRoute: ImportacoesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
