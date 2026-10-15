@@ -1,4 +1,4 @@
 import {createFileRoute} from '@tanstack/react-router';
 import {DashboardPage} from '@/features/dashboard/dashboard-page';
 export const Route=createFileRoute('/bases')({validateSearch:(search:Record<string,unknown>):{base?:string}=>({base:typeof search['base']==='string'?search['base']:''}),head:()=>({meta:[{title:'Análise por Base | JM Dashboard DS'},{name:'description',content:'Compare as bases Last Mile e as três performances da JM Transportes.'},{property:'og:title',content:'Análise por Base | JM Dashboard DS'},{property:'og:description',content:'Detalhamento por base dos indicadores operacionais JM.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary_large_image'}]}),component:Bases});
-function Bases(){const {base}=Route.useSearch();return <DashboardPage key={base} view="bases" initialBase={base}/>;}
+function Bases(){const {base}=Route.useSearch();return <DashboardPage key={base ?? ''} view="bases" initialBase={base ?? ''}/>;}
