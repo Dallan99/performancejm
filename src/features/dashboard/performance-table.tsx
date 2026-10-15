@@ -1,11 +1,189 @@
-import {useState} from 'react';
-import {ArrowDownUp,Search,Download,ArrowUpRight,ChevronLeft,ChevronRight} from 'lucide-react';
-import {Link} from '@tanstack/react-router';
-import {Button} from '@/components/ui/button';
-import {columns,number,percent,performanceTone,exportCsv,type BaseRow} from './data';
-export function PerformanceTable({rows,title='Performance por base'}:{rows:BaseRow[];title?:string}) {
- const [query,setQuery]=useState('');const [sort,setSort]=useState<keyof BaseRow>('base');const [asc,setAsc]=useState(true);const [status,setStatus]=useState('all'); const [page,setPage]=useState(0);
- const filtered=rows.filter(r=>r.base.toLowerCase().includes(query.toLowerCase())&&(status==='all'||performanceTone(r.logistics,r.packages>0)===status)).sort((a,b)=>{const x=a[sort],y=b[sort];return (typeof x==='string'&&typeof y==='string'?x.localeCompare(y):(Number(x??-1)-Number(y??-1)))*(asc?1:-1);});
- const totalPages=Math.max(1,Math.ceil(filtered.length/8));const current=Math.min(page,totalPages-1);
- return <section className="table-section"><div className="section-heading"><div><h2>{title}<span className="count-badge">{rows.length} bases</span></h2><p>Detalhamento dos indicadores da operação</p></div><Button variant="outline" size="sm" onClick={()=>exportCsv(filtered)}><Download/>Exportar CSV</Button></div><div className="table-toolbar"><div className="search-field"><Search size={16}/><input aria-label="Buscar base na tabela" placeholder="Buscar base ou código..." value={query} onChange={e=>{setQuery(e.target.value);setPage(0);}}/></div><select className="compact-select" aria-label="Filtrar status da tabela" value={status} onChange={e=>{setStatus(e.target.value);setPage(0);}}><option value="all">Todos os status</option><option value="success">Dentro da meta</option><option value="warning">Atenção</option><option value="danger">Crítico</option><option value="neutral">Sem dados</option></select><span className="table-scroll-hint">12 indicadores <ArrowDownUp size={13}/></span></div><div className="table-scroll"><table className="data-table performance-table"><thead><tr>{columns.map(c=><th key={c.key}><Button variant="ghost" onClick={()=>{setSort(c.key);setAsc(sort===c.key?!asc:true);}} className="table-sort">{c.label}<ArrowDownUp className={sort===c.key?'text-primary':'text-muted-foreground'}/></Button></th>)}</tr></thead><tbody>{filtered.slice(current*8,(current+1)*8).map(r=><tr key={r.base}>{columns.map(c=><td key={c.key}>{c.key==='base'?<Link to="/bases" search={{base:r.base}} className="base-cell"><span className="base-code">{r.base.split(' ')[0]}</span><span>{r.base.substring(r.base.indexOf(' ')+1)}</span></Link>:c.key==='type'?<span className={`operation-badge ${r.type==='XPT'?'xpt':''}`}>{r.type}</span>:['logistics','withoutDc','withoutClaims'].includes(c.key)?<span className={`performance-chip tone-${performanceTone(r[c.key] as number|null,r.packages>0)}`}><span/>{percent(r[c.key] as number|null)}</span>:<span className={['claims','failures','pnr'].includes(c.key)&&Number(r[c.key])>0?'text-muted-foreground':''}>{number(Number(r[c.key]))}</span>}</td>)}</tr>)}{!filtered.length&&<tr><td colSpan={12} className="text-center py-10 text-muted-foreground">Nenhuma base encontrada para os filtros.</td></tr>}</tbody></table></div><div className="table-pagination"><span>Exibindo {filtered.length?current*8+1:0}–{Math.min((current+1)*8,filtered.length)} de {filtered.length} bases</span><div className="flex items-center gap-2"><Button variant="outline" size="icon" aria-label="Página anterior" disabled={current===0} onClick={()=>setPage(current-1)}><ChevronLeft/></Button><span>{current+1} / {totalPages}</span><Button variant="outline" size="icon" aria-label="Próxima página" disabled={current===totalPages-1} onClick={()=>setPage(current+1)}><ChevronRight/></Button></div></div></section>;
+import { useState } from "react";
+import {
+  ArrowDownUp,
+  Search,
+  Download,
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { columns, number, percent, performanceTone, exportCsv, type BaseRow } from "./data";
+export function PerformanceTable({
+  rows,
+  title = "Performance por base",
+}: {
+  rows: BaseRow[];
+  title?: string;
+}) {
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<keyof BaseRow>("base");
+  const [asc, setAsc] = useState(true);
+  const [status, setStatus] = useState("all");
+  const [page, setPage] = useState(0);
+  const filtered = rows
+    .filter(
+      (r) =>
+        r.base.toLowerCase().includes(query.toLowerCase()) &&
+        (status === "all" || performanceTone(r.logistics, r.packages > 0) === status),
+    )
+    .sort((a, b) => {
+      const x = a[sort],
+        y = b[sort];
+      return (
+        (typeof x === "string" && typeof y === "string"
+          ? x.localeCompare(y)
+          : Number(x ?? -1) - Number(y ?? -1)) * (asc ? 1 : -1)
+      );
+    });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / 8));
+  const current = Math.min(page, totalPages - 1);
+  return (
+    <section className="table-section">
+      <div className="section-heading">
+        <div>
+          <h2>
+            {title}
+            <span className="count-badge">{rows.length} bases</span>
+          </h2>
+          <p>Detalhamento dos indicadores da operação</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => exportCsv(filtered)}>
+          <Download />
+          Exportar CSV
+        </Button>
+      </div>
+      <div className="table-toolbar">
+        <div className="search-field">
+          <Search size={16} />
+          <input
+            aria-label="Buscar base na tabela"
+            placeholder="Buscar base ou código..."
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(0);
+            }}
+          />
+        </div>
+        <select
+          className="compact-select"
+          aria-label="Filtrar status da tabela"
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value);
+            setPage(0);
+          }}
+        >
+          <option value="all">Todos os status</option>
+          <option value="success">Dentro da meta</option>
+          <option value="warning">Atenção</option>
+          <option value="danger">Crítico</option>
+          <option value="neutral">Sem dados</option>
+        </select>
+        <span className="table-scroll-hint">
+          12 indicadores <ArrowDownUp size={13} />
+        </span>
+      </div>
+      <div className="table-scroll">
+        <table className="data-table performance-table">
+          <thead>
+            <tr>
+              {columns.map((c) => (
+                <th key={c.key}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setSort(c.key);
+                      setAsc(sort === c.key ? !asc : true);
+                    }}
+                    className="table-sort"
+                  >
+                    {c.label}
+                    <ArrowDownUp
+                      className={sort === c.key ? "text-primary" : "text-muted-foreground"}
+                    />
+                  </Button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.slice(current * 8, (current + 1) * 8).map((r) => (
+              <tr key={r.base}>
+                {columns.map((c) => (
+                  <td key={c.key}>
+                    {c.key === "base" ? (
+                      <Link to="/bases" search={{ base: r.base }} className="base-cell">
+                        <span className="base-code">{r.base.split(" ")[0]}</span>
+                        <span>{r.base.substring(r.base.indexOf(" ") + 1)}</span>
+                      </Link>
+                    ) : c.key === "type" ? (
+                      <span className={`operation-badge ${r.type === "XPT" ? "xpt" : ""}`}>
+                        {r.type}
+                      </span>
+                    ) : ["logistics", "withoutDc", "withoutClaims"].includes(c.key) ? (
+                      <span
+                        className={`performance-chip tone-${performanceTone(r[c.key] as number | null, r.packages > 0)}`}
+                      >
+                        <span />
+                        {percent(r[c.key] as number | null)}
+                      </span>
+                    ) : (
+                      <span
+                        className={
+                          ["claims", "failures", "pnr"].includes(c.key) && Number(r[c.key]) > 0
+                            ? "text-muted-foreground"
+                            : ""
+                        }
+                      >
+                        {number(Number(r[c.key]))}
+                      </span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+            {!filtered.length && (
+              <tr>
+                <td colSpan={12} className="text-center py-10 text-muted-foreground">
+                  Nenhuma base encontrada para os filtros.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="table-pagination">
+        <span>
+          Exibindo {filtered.length ? current * 8 + 1 : 0}–
+          {Math.min((current + 1) * 8, filtered.length)} de {filtered.length} bases
+        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Página anterior"
+            disabled={current === 0}
+            onClick={() => setPage(current - 1)}
+          >
+            <ChevronLeft />
+          </Button>
+          <span>
+            {current + 1} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Próxima página"
+            disabled={current === totalPages - 1}
+            onClick={() => setPage(current + 1)}
+          >
+            <ChevronRight />
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
 }
