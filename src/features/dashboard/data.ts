@@ -16,7 +16,8 @@ const seeds: [string,string,number,number,number][] = [
  ['SSP3 Campinas','Services',82,10248,99.12],['SSP38 Itupeva','Services',46,5710,98.87],['ESP15 XPT Ibiúna','XPT',24,2940,98.62],['SSP5 Barueri','Services',96,12560,99.34],['SSP20 Sorocaba','Services',58,7210,97.85],['SSP56 XPT Embu Guaçu','XPT',18,2150,96.92],['ESP16 XPT Guarujá','XPT',21,2460,95.78],['SSP17 ABC','Services',74,9680,98.45],['SSP6 Mauá','Services',38,4860,97.62],['SSP45 Itaquera','Services',65,8470,98.72],['SSP15 Santos','Services',32,3840,96.34],['SSP37 Campinas','Services',53,6610,99.08],['SSP23 Suzano','Services',41,5080,97.94],['SSC2 Biguaçu','Services',27,3150,99.26],['SSP25 Atibaia','Services',29,3460,98.53],['ESP18 Franco da Rocha','XPT',23,2820,96.81]
 ];
 export const dates = Array.from({length: 14}, (_, i) => `2026-10-${String(14-i).padStart(2,'0')}`);
-export function rowsForDate(date: string): BaseRow[] {
+export const LATEST_DATE = dates[0] ?? '2026-10-14';
+export function rowsForDate(date: string = LATEST_DATE): BaseRow[] {
  const offset = Math.max(0, dates.indexOf(date));
  return seeds.map(([base,type,vehicles,packages,performance], i) => {
   const p = Math.max(91, Math.min(99.8, performance - offset * .045 + (offset ? Math.sin(i+offset)*.28 : 0)));
