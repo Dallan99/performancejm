@@ -40,7 +40,11 @@ import {
   toneLabels,
   exportCsv,
   type Metric,
+  type BaseRow,
+  type SupervisorName,
   type DailyDataset,
+  supervisorGroups,
+  isBaseForSupervisor,
 } from "./data";
 import { EvolutionChart, RankingChart } from "./charts";
 import { PerformanceTable } from "./performance-table";
@@ -56,11 +60,15 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
   const [date, setDate] = useState(latestAvailableDate);
   const [period, setPeriod] = useState("day");
   const [base, setBase] = useState(initialBase);
+  const [supervisorName, setSupervisorName] = useState<SupervisorName | "">("");
   const [metric, setMetric] = useState<Metric>("logistics");
   const [modal, setModal] = useState(false);
   const activePeriod = view === "overview" ? "day" : period;
   const importedDataset = getImportedDataset(date);
   const importHistory = getImportedDatasets();
+  const activeSupervisor = view === "overview"
+    ? supervisorGroups.find((group) => group.name === supervisorName)
+    : undefined;
   useEffect(() => {
     const syncLatest = (event: Event) => {
       const importedDate = (event as CustomEvent<string>).detail;
@@ -70,19 +78,27 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
     return () => window.removeEventListener("dashboard:dataset-imported", syncLatest);
   }, []);
   const all = rowsForDate(date);
+  const matchingRows = (source: BaseRow[]) =>
+    source.filter(
+      (row) =>
+        (!activeSupervisor || isBaseForSupervisor(row.base, activeSupervisor.name)) &&
+        (!base || row.base === base),
+    );
+  const baseOptions = activeSupervisor
+    ? all.filter((row) => isBaseForSupervisor(row.base, activeSupervisor.name))
+    : all;
   const selectedDates =
     activePeriod === "day"
       ? [date]
       : dates.slice(dates.indexOf(date), dates.indexOf(date) + (activePeriod === "week" ? 7 : 14));
-  const rows = all
-    .filter((r) => !base || r.base === base)
+  const rows = matchingRows(all)
     .map((r) => {
       if (activePeriod === "day") return r;
-      const group = selectedDates.flatMap((d) => rowsForDate(d).filter((b) => b.base === r.base));
+      const group = selectedDates.flatMap((d) => matchingRows(rowsForDate(d)).filter((b) => b.base === r.base));
       return { ...r, ...aggregate(group) };
     });
   const totals =
-    importedDataset && activePeriod === "day" && !base
+    importedDataset && activePeriod === "day" && !base && !activeSupervisor
       ? importedDataset.consolidated
       : aggregate(rows);
   const tone = performanceTone(totals[metric], totals.packages > 0);
@@ -91,9 +107,9 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
     .filter((d) => d <= date)
     .map((d) => ({
       date: d,
-      value: getImportedDataset(d) && !base
+      value: getImportedDataset(d) && !base && !activeSupervisor
         ? getImportedDataset(d)!.consolidated[metric]
-        : aggregate(rowsForDate(d).filter((r) => !base || r.base === base))[metric],
+        : aggregate(matchingRows(rowsForDate(d)))[metric],
     }));
   const counts = { success: 0, warning: 0, danger: 0, neutral: 0 };
   rows.forEach((r) => counts[performanceTone(r[metric], r.packages > 0)]++);
@@ -156,10 +172,12 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
     },
   ];
   const previous = aggregate(
-    rowsForDate(dates[Math.min(dates.indexOf(date) + 1, dates.length - 1)]).filter(
-      (r) => !base || r.base === base,
-    ),
+    matchingRows(rowsForDate(dates[Math.min(dates.indexOf(date) + 1, dates.length - 1)])),
   );
+  const supervisorSummaries = supervisorGroups.map((group) => {
+    const groupRows = all.filter((row) => isBaseForSupervisor(row.base, group.name));
+    return { ...group, rows: groupRows, totals: aggregate(groupRows) };
+  });
   return (
     <>
       <div className={`page-heading ${view === "overview" ? "overview-heading" : ""}`}>
@@ -222,7 +240,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
               <label htmlFor="base">Base operacional</label>
               <select id="base" value={base} onChange={(e) => setBase(e.target.value)}>
                 <option value="">Todas as bases</option>
-                {all.map((r) => (
+                {baseOptions.map((r) => (
                   <option key={r.base}>{r.base}</option>
                 ))}
               </select>
@@ -250,6 +268,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
               aria-label="Limpar filtros"
               onClick={() => {
                 setBase("");
+                setSupervisorName("");
                 setDate(latestAvailableDate());
                 setPeriod("day");
                 setMetric("logistics");
@@ -275,6 +294,50 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
       )}
       {view === "overview" && (
         <>
+          <section className="supervisor-board" aria-label="Filtros de supervisor">
+            <div className="supervisor-board-heading">
+              <div>
+                <h2>Visão por supervisor</h2>
+                <p>Selecione para ver as bases e o consolidado da equipe.</p>
+              </div>
+              {activeSupervisor && (
+                <Button variant="outline" size="sm" onClick={() => { setSupervisorName(""); setBase(""); }}>
+                  Todas as bases
+                </Button>
+              )}
+            </div>
+            <div className="supervisor-cards">
+              {supervisorSummaries.map((group) => {
+                const groupTone = performanceTone(group.totals.logistics, group.totals.packages > 0);
+                return (
+                  <button
+                    type="button"
+                    key={group.name}
+                    className={`supervisor-card ${supervisorName === group.name ? "is-selected" : ""}`}
+                    aria-pressed={supervisorName === group.name}
+                    onClick={() => {
+                      setSupervisorName(supervisorName === group.name ? "" : group.name);
+                      setBase("");
+                    }}
+                  >
+                    <span className="supervisor-card-top">
+                      <strong>{group.name}</strong>
+                      <span>{group.rows.length}/{group.baseCodes.length} bases</span>
+                    </span>
+                    <span className={`supervisor-card-performance tone-text-${groupTone}`}>
+                      {percent(group.totals.logistics)}
+                      <small>DS geral da equipe</small>
+                    </span>
+                    <span className="supervisor-card-bases">{group.baseLabels.join(" · ")}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+          <div className="supervisor-summary-title">
+            <strong>{activeSupervisor ? `DS geral — ${activeSupervisor.name}` : "DS geral — todas as bases"}</strong>
+            <span>{rows.length} bases no resumo · Meta 98,20%</span>
+          </div>
           <section className="kpi-grid overview-kpi-grid">
             {cards.map((c) => {
               const key = {
