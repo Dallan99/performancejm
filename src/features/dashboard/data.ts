@@ -52,8 +52,8 @@ export const supervisorGroups = [
   },
   {
     name: "Juliana",
-    baseCodes: ["SSP37", "SSP38", "SSP20", "ESP15"],
-    baseLabels: ["Campinas SSP37/03", "Itupeva SSP38", "Sorocaba SSP20", "Ibiúna ESP15"],
+    baseCodes: ["SSP37", "SSP38", "SSP20", "ESP15", "SSP5"],
+    baseLabels: ["Campinas SSP37/03", "Itupeva SSP38", "Sorocaba SSP20", "Ibiúna ESP15", "Barueri SSP5"],
   },
 ] as const;
 export type SupervisorName = (typeof supervisorGroups)[number]["name"];
@@ -66,6 +66,12 @@ export function isBaseForSupervisor(base: string, supervisor: SupervisorName) {
   const group = supervisorGroups.find((item) => item.name === supervisor);
   const code = baseCode(base);
   return Boolean(code && group?.baseCodes.some((groupCode) => groupCode === code));
+}
+export function operationTypeForBase(base: string) {
+  const code = baseCode(base);
+  if (code?.startsWith("ESP")) return "XPT";
+  if (code?.startsWith("SSP")) return "Services";
+  return /\bXPT\b/i.test(base) ? "XPT" : "Services";
 }
 const importedDatasets: DailyDataset[] = [];
 export function getImportedDatasets() {
