@@ -581,6 +581,108 @@ h1 {
 .overview-kpi-grid .performance-state small {
   display: none;
 }
+.supervisor-board {
+  margin: 14px 0 10px;
+  padding: 13px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.supervisor-board-heading,
+.supervisor-card-top,
+.supervisor-summary-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.supervisor-board-heading {
+  margin-bottom: 10px;
+}
+.supervisor-board-heading h2 {
+  font-size: 13px;
+}
+.supervisor-board-heading p {
+  margin-top: 3px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.supervisor-board-heading button {
+  height: 30px;
+  font-size: 10px;
+}
+.supervisor-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.supervisor-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 12px;
+  color: var(--foreground);
+  text-align: left;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.supervisor-card:hover,
+.supervisor-card:focus-visible,
+.supervisor-card.is-selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.supervisor-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.supervisor-card-top strong {
+  font-size: 12px;
+}
+.supervisor-card-top > span {
+  padding: 3px 6px;
+  color: var(--primary);
+  background: var(--card);
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+}
+.supervisor-card-performance {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.supervisor-card-performance small {
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-weight: 500;
+}
+.supervisor-card-bases {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.supervisor-summary-title {
+  margin: 12px 0 8px;
+  font-size: 11px;
+}
+.supervisor-summary-title strong {
+  font-size: 13px;
+  color: var(--primary);
+}
+.supervisor-summary-title span {
+  color: var(--muted-foreground);
+  font-size: 9px;
+}
 .kpi-card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -1534,6 +1636,14 @@ h2 {
   }
   .overview-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .supervisor-cards {
+    grid-template-columns: 1fr;
+  }
+  .supervisor-summary-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
   }
   .page-heading {
     margin-bottom: 22px;

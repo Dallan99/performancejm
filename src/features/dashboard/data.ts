@@ -39,6 +39,34 @@ export type DailyDataset = {
   sourceRows?: string[][];
   sourceHeaders?: string[];
 };
+export const supervisorGroups = [
+  {
+    name: "Patricia",
+    baseCodes: ["SSP45", "SSP23", "SSP6", "SSP17"],
+    baseLabels: ["Itaquera SSP45", "Suzano SSP23", "Mauá SSP06", "São Bernardo SSP17"],
+  },
+  {
+    name: "Sergio",
+    baseCodes: ["ESP16", "ESP17", "ESP18", "SSP15"],
+    baseLabels: ["Guarujá ESP16", "São Lourenço ESP17", "Franco da Rocha ESP18", "São Vicente SSP15"],
+  },
+  {
+    name: "Juliana",
+    baseCodes: ["SSP37", "SSP38", "SSP20", "ESP15"],
+    baseLabels: ["Campinas SSP37/03", "Itupeva SSP38", "Sorocaba SSP20", "Ibiúna ESP15"],
+  },
+] as const;
+export type SupervisorName = (typeof supervisorGroups)[number]["name"];
+export function baseCode(base: string) {
+  const prefix = base.split("/")[0].toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const match = prefix.match(/(SSP|ESP|SSC)0*(\d+)/);
+  return match ? match[1] + String(Number(match[2])) : null;
+}
+export function isBaseForSupervisor(base: string, supervisor: SupervisorName) {
+  const group = supervisorGroups.find((item) => item.name === supervisor);
+  const code = baseCode(base);
+  return Boolean(code && group?.baseCodes.some((groupCode) => groupCode === code));
+}
 const importedDatasets: DailyDataset[] = [];
 export function getImportedDatasets() {
   return [...importedDatasets].sort((a, b) => b.date.localeCompare(a.date));
