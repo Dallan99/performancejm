@@ -856,6 +856,17 @@ h2 {
 .performance-table {
   min-width: 1510px;
 }
+.performance-table tfoot.consolidated-row {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  font-weight: 700;
+}
+.performance-table tfoot.consolidated-row td {
+  background: var(--muted);
+  border-top: 2px solid var(--border);
+  white-space: nowrap;
+}
 .data-table th {
   background: var(--muted);
   font-size: 9px;
@@ -1555,3 +1566,4 @@ h2 {
     animation: none !important;
   }
 }
+
