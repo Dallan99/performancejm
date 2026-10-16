@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Truck,
   Package,
@@ -26,6 +26,10 @@ import { Button } from "@/components/ui/button";
 import {
   LATEST_DATE,
   dates,
+  getImportedDataset,
+  getImportedDatasets,
+  latestAvailableDate,
+  registerImportedDataset,
   rowsForDate,
   aggregate,
   metricNames,
@@ -36,6 +40,7 @@ import {
   toneLabels,
   exportCsv,
   type Metric,
+  type DailyDataset,
 } from "./data";
 import { EvolutionChart, RankingChart } from "./charts";
 import { PerformanceTable } from "./performance-table";
@@ -48,31 +53,47 @@ const titles = {
   imports: "Importações",
 };
 export function DashboardPage({ view, initialBase = "" }: { view: View; initialBase?: string }) {
-  const [date, setDate] = useState(LATEST_DATE);
+  const [date, setDate] = useState(latestAvailableDate);
   const [period, setPeriod] = useState("day");
   const [base, setBase] = useState(initialBase);
   const [metric, setMetric] = useState<Metric>("logistics");
   const [modal, setModal] = useState(false);
+  const activePeriod = view === "overview" ? "day" : period;
+  const importedDataset = getImportedDataset(date);
+  const importHistory = getImportedDatasets();
+  useEffect(() => {
+    const syncLatest = (event: Event) => {
+      const importedDate = (event as CustomEvent<string>).detail;
+      if (importedDate) setDate(importedDate);
+    };
+    window.addEventListener("dashboard:dataset-imported", syncLatest);
+    return () => window.removeEventListener("dashboard:dataset-imported", syncLatest);
+  }, []);
   const all = rowsForDate(date);
   const selectedDates =
-    period === "day"
+    activePeriod === "day"
       ? [date]
-      : dates.slice(dates.indexOf(date), dates.indexOf(date) + (period === "week" ? 7 : 14));
+      : dates.slice(dates.indexOf(date), dates.indexOf(date) + (activePeriod === "week" ? 7 : 14));
   const rows = all
     .filter((r) => !base || r.base === base)
     .map((r) => {
-      if (period === "day") return r;
+      if (activePeriod === "day") return r;
       const group = selectedDates.flatMap((d) => rowsForDate(d).filter((b) => b.base === r.base));
       return { ...r, ...aggregate(group) };
     });
-  const totals = aggregate(rows);
+  const totals =
+    importedDataset && activePeriod === "day" && !base
+      ? importedDataset.consolidated
+      : aggregate(rows);
   const tone = performanceTone(totals[metric], totals.packages > 0);
   const trends = [...dates]
     .reverse()
     .filter((d) => d <= date)
     .map((d) => ({
       date: d,
-      value: aggregate(rowsForDate(d).filter((r) => !base || r.base === base))[metric],
+      value: getImportedDataset(d) && !base
+        ? getImportedDataset(d)!.consolidated[metric]
+        : aggregate(rowsForDate(d).filter((r) => !base || r.base === base))[metric],
     }));
   const counts = { success: 0, warning: 0, danger: 0, neutral: 0 };
   rows.forEach((r) => counts[performanceTone(r[metric], r.packages > 0)]++);
@@ -141,10 +162,10 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
   );
   return (
     <>
-      <div className="page-heading">
+      <div className={`page-heading ${view === "overview" ? "overview-heading" : ""}`}>
         <div>
           <div className="page-eyebrow">PERFORMANCE LAST MILE</div>
-          <h1>{titles[view]}</h1>
+          <h1>{view === "overview" ? "Painel de Performance" : titles[view]}</h1>
           <p>
             {view === "overview"
               ? "Uma visão consolidada da sua operação, em um só lugar."
@@ -162,7 +183,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
           <div>
             <span>Última data operacional</span>
             <strong>
-              {shortDate(LATEST_DATE)}
+              {shortDate(latestAvailableDate())}
               <span className="latest-badge">Mais recente</span>
             </strong>
           </div>
@@ -170,7 +191,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
       </div>
       {view !== "imports" && (
         <>
-          <section className="filter-band">
+          <section className={`filter-band ${view === "overview" ? "overview-filters" : ""}`}>
             <div className="filter-field date-filter">
               <label htmlFor="op-date">
                 <CalendarDays size={13} />
@@ -180,21 +201,23 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
                 id="op-date"
                 type="date"
                 min={dates.at(-1)}
-                max={LATEST_DATE}
+                max={dates[0] ?? LATEST_DATE}
                 value={date}
                 onChange={(e) => {
                   if (dates.includes(e.target.value)) setDate(e.target.value);
                 }}
               />
             </div>
-            <div className="filter-field">
-              <label htmlFor="period">Período</label>
-              <select id="period" value={period} onChange={(e) => setPeriod(e.target.value)}>
-                <option value="day">Diário</option>
-                <option value="week">Últimos 7 dias</option>
-                <option value="fortnight">Últimos 14 dias</option>
-              </select>
-            </div>
+            {view !== "overview" && (
+              <div className="filter-field">
+                <label htmlFor="period">Período</label>
+                <select id="period" value={period} onChange={(e) => setPeriod(e.target.value)}>
+                  <option value="day">Diário</option>
+                  <option value="week">Últimos 7 dias</option>
+                  <option value="fortnight">Últimos 14 dias</option>
+                </select>
+              </div>
+            )}
             <div className="filter-field base-filter">
               <label htmlFor="base">Base operacional</label>
               <select id="base" value={base} onChange={(e) => setBase(e.target.value)}>
@@ -204,20 +227,22 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
                 ))}
               </select>
             </div>
-            <div className="filter-field indicator-filter">
-              <label htmlFor="indicator">Indicador de performance</label>
-              <select
-                id="indicator"
-                value={metric}
-                onChange={(e) => setMetric(e.target.value as Metric)}
-              >
-                {Object.entries(metricNames).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {view !== "overview" && (
+              <div className="filter-field indicator-filter">
+                <label htmlFor="indicator">Indicador de performance</label>
+                <select
+                  id="indicator"
+                  value={metric}
+                  onChange={(e) => setMetric(e.target.value as Metric)}
+                >
+                  {Object.entries(metricNames).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <Button
               variant="outline"
               className="reset-filters"
@@ -225,7 +250,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
               aria-label="Limpar filtros"
               onClick={() => {
                 setBase("");
-                setDate(LATEST_DATE);
+                setDate(latestAvailableDate());
                 setPeriod("day");
                 setMetric("logistics");
               }}
@@ -233,7 +258,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
               <RotateCw size={16} />
             </Button>
           </section>
-          <div className="results-line">
+          <div className={`results-line ${view === "overview" ? "overview-results" : ""}`}>
             <span>
               <span className="live-dot" />
               Operação de <strong>{shortDate(date)}</strong>
@@ -241,14 +266,16 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
               <strong>{rows.length}</strong> bases {base ? "selecionada" : "ativas"}
             </span>
             <span>
-              Atualizado às 08:45 <span className="results-divider">·</span> Demonstração
+              {importedDataset
+                ? "Arquivo importado nesta sessão: " + importedDataset.filename
+                : "Demonstração"}
             </span>
           </div>
         </>
       )}
       {view === "overview" && (
         <>
-          <section className="kpi-grid">
+          <section className="kpi-grid overview-kpi-grid">
             {cards.map((c) => {
               const key = {
                 Veículos: "vehicles",
@@ -260,7 +287,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
                 PNR: "pnr",
               }[c.label] as keyof typeof previous;
               const prev = Number(previous[key]);
-              const change = period === "day" && prev ? ((c.value - prev) / prev) * 100 : null;
+              const change = activePeriod === "day" && prev ? ((c.value - prev) / prev) * 100 : null;
               return (
                 <article className="kpi-card" key={c.label}>
                   <div className="kpi-label">
@@ -340,11 +367,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
               Meta oficial: <strong>98,20%</strong>
             </span>
           </div>
-          <div className="charts-grid">
-            <EvolutionChart points={trends} />
-            <RankingChart rows={rows} metric={metric} />
-          </div>
-          <PerformanceTable rows={rows} />
+          <PerformanceTable rows={rows} date={date} importedDataset={importedDataset} />
         </>
       )}
       {view === "history" && (
@@ -395,7 +418,9 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
                     .filter((d) => d <= date)
                     .map((d) => {
                       const list = rowsForDate(d).filter((r) => !base || r.base === base);
-                      const a = aggregate(list);
+                      const a = getImportedDataset(d) && !base
+                        ? getImportedDataset(d)!.consolidated
+                        : aggregate(list);
                       const t = performanceTone(a[metric], a.packages > 0);
                       return (
                         <tr key={d}>
@@ -469,7 +494,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
             <EvolutionChart points={trends} />
             <RankingChart rows={rows} metric={metric} />
           </div>
-          <PerformanceTable rows={rows} />
+          <PerformanceTable rows={rows} date={date} importedDataset={importedDataset} />
         </>
       )}
       {view === "imports" && (
@@ -480,8 +505,8 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
             </div>
             <div>
               <h2>Planilhas operacionais</h2>
-              <p>CSV diário com as 12 colunas originais da operação.</p>
-              <span>Prévia e validação de arquivos · Sem armazenamento conectado</span>
+              <p>Planilha diária Excel ou CSV com as 12 colunas da operação.</p>
+              <span>Importações disponíveis somente nesta sessão do navegador.</span>
             </div>
             <Button onClick={() => setModal(true)}>
               <Upload />
@@ -492,19 +517,19 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
             <div>
               <FileSpreadsheet />
               <span>
-                Arquivos demonstrativos<strong>14</strong>
+                Arquivos nesta sessão<strong>{importHistory.length}</strong>
               </span>
             </div>
             <div>
               <CheckCircle2 className="text-success" />
               <span>
-                Validados<strong>14</strong>
+                Validados nesta sessão<strong>{importHistory.length}</strong>
               </span>
             </div>
             <div>
               <MapPin />
               <span>
-                Bases por arquivo<strong>16</strong>
+                Bases no arquivo mais recente<strong>{importHistory[0]?.rows.length ?? 0}</strong>
               </span>
             </div>
           </div>
@@ -512,9 +537,9 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
             <div className="section-heading">
               <div>
                 <h2>Histórico de importações</h2>
-                <p>Registros demonstrativos de arquivos diários</p>
+                <p>Arquivos importados nesta sessão ativa do navegador</p>
               </div>
-              <span className="demo-badge">Demonstração</span>
+              <span className="demo-badge">Temporário</span>
             </div>
             <div className="table-scroll">
               <table className="data-table imports-table">
@@ -529,47 +554,60 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
                   </tr>
                 </thead>
                 <tbody>
-                  {dates.map((d) => (
-                    <tr key={d}>
+                  {importHistory.map((d) => (
+                    <tr key={d.date}>
                       <td>
                         <span className="file-cell">
                           <FileSpreadsheet size={20} />
-                          <strong>ds_last_mile_{d.replaceAll("-", "")}.csv</strong>
+                          <strong>{d.filename}</strong>
                         </span>
                       </td>
-                      <td>{shortDate(d)}</td>
-                      <td>16 bases</td>
+                      <td>{shortDate(d.date)}</td>
+                      <td>{d.rows.length} bases</td>
                       <td>
                         <span className="performance-chip tone-success">
                           <CheckCircle2 size={13} />
-                          Validado
+                          Nesta sessão
                         </span>
                       </td>
-                      <td>Operação JM</td>
+                      <td>Importação local</td>
                       <td>
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label={`Baixar CSV de ${shortDate(d)}`}
-                          onClick={() => exportCsv(rowsForDate(d))}
+                          aria-label={"Baixar CSV de " + shortDate(d.date)}
+                          onClick={() => exportCsv(d.rows)}
                         >
                           <Download />
                         </Button>
                       </td>
                     </tr>
                   ))}
+                  {!importHistory.length && (
+                    <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">Nenhuma planilha importada nesta sessão.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </section>
           <div className="imports-notice">
             <Info size={16} />
-            Arquivos exibidos são demonstrativos. Novos uploads permitem apenas validação e prévia,
-            sem salvar dados.
+            As importações ficam somente na memória desta sessão do navegador e desaparecem quando
+            ela termina. Nenhum arquivo ou indicador foi salvo em banco de dados.
           </div>
         </>
       )}
-      <ImportModal open={modal} onOpenChange={setModal} />
+      <ImportModal
+        open={modal}
+        onOpenChange={setModal}
+        onImport={(dataset: DailyDataset, replace: boolean) => {
+          registerImportedDataset(dataset, replace);
+          setDate(latestAvailableDate());
+          setBase("");
+          setPeriod("day");
+        }}
+      />
     </>
   );
 }
+

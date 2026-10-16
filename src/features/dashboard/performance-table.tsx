@@ -1,189 +1,130 @@
-import { useState } from "react";
-import {
-  ArrowDownUp,
-  Search,
-  Download,
-  ArrowUpRight,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowDownUp, Search, Download, RotateCcw } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { columns, number, percent, performanceTone, exportCsv, type BaseRow } from "./data";
-export function PerformanceTable({
-  rows,
-  title = "Performance por base",
-}: {
+import { columns, number, percent, performanceTone, exportCsv, type BaseRow, type DailyDataset } from "./data";
+import { OFFICIAL_HEADERS } from "./workbook";
+
+type SortKey = keyof BaseRow | "date";
+const officialFields: SortKey[] = ["date", "base", "vehicles", "packages", "deliveries", "dc", "claims", "failures", "pnr", "logistics", "withoutDc", "withoutClaims"];
+
+export function PerformanceTable({ rows, title = "Performance por base", date, importedDataset }: {
   rows: BaseRow[];
   title?: string;
+  date?: string;
+  importedDataset?: DailyDataset | null;
 }) {
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<keyof BaseRow>("base");
-  const [asc, setAsc] = useState(true);
+  const [sort, setSort] = useState<SortKey | null>(null);
+  const [ascending, setAscending] = useState(true);
   const [status, setStatus] = useState("all");
-  const [page, setPage] = useState(0);
-  const filtered = rows
-    .filter(
-      (r) =>
-        r.base.toLowerCase().includes(query.toLowerCase()) &&
-        (status === "all" || performanceTone(r.logistics, r.packages > 0) === status),
-    )
-    .sort((a, b) => {
-      const x = a[sort],
-        y = b[sort];
+  const filtered = useMemo(() => {
+    const result = rows.filter((row) =>
+      row.base.toLocaleLowerCase().includes(query.toLocaleLowerCase()) &&
+      (status === "all" || performanceTone(row.logistics, row.packages > 0) === status),
+    );
+    if (sort) {
+      result.sort((a, b) => {
+        const left = sort === "date" ? a.date ?? date ?? "" : a[sort];
+        const right = sort === "date" ? b.date ?? date ?? "" : b[sort];
+        const compared = typeof left === "string" && typeof right === "string"
+          ? left.localeCompare(right)
+          : Number(left ?? -1) - Number(right ?? -1);
+        return compared * (ascending ? 1 : -1);
+      });
+    }
+    return result;
+  }, [rows, query, status, sort, ascending, date]);
+  const imported = Boolean(importedDataset);
+  const headers = imported ? OFFICIAL_HEADERS : columns.map((column) => column.label);
+  const fields = imported ? officialFields : columns.map((column) => column.key as SortKey);
+  const rowsForExport = filtered;
+  const dateText = date ? new Date(date + "T12:00:00").toLocaleDateString("pt-BR") : "—";
+
+  function sortBy(field: SortKey) {
+    if (sort === field) setAscending((current) => !current);
+    else { setSort(field); setAscending(true); }
+  }
+
+  function cell(row: BaseRow, field: SortKey, rowDate = dateText) {
+    if (field === "date") {
+      if (importedDataset) {
+        const sourceRow = importedDataset.sourceRows?.find((source) => source[1] === row.base);
+        return sourceRow?.[0]?.trim() ?? "";
+      }
+      return rowDate;
+    }
+    if (field === "base") {
+      if (row.base === "Consolidado") return <strong>{row.base}</strong>;
+      if (imported) return <span>{row.base}</span>;
       return (
-        (typeof x === "string" && typeof y === "string"
-          ? x.localeCompare(y)
-          : Number(x ?? -1) - Number(y ?? -1)) * (asc ? 1 : -1)
+        <Link to="/bases" search={{ base: row.base }} className="base-cell">
+          <span className="base-code">{row.base.split(" ")[0]}</span>
+          <span>{row.base.substring(row.base.indexOf(" ") + 1)}</span>
+        </Link>
       );
-    });
-  const totalPages = Math.max(1, Math.ceil(filtered.length / 8));
-  const current = Math.min(page, totalPages - 1);
+    }
+    if (field === "type") return <span className={"operation-badge " + (row.type === "XPT" ? "xpt" : "")}>{row.type}</span>;
+    if (field === "vehicles" || field === "packages" || field === "deliveries" || field === "dc" || field === "claims" || field === "failures" || field === "pnr") {
+      return number(row[field]);
+    }
+    const value = row[field];
+    const tone = performanceTone(value, row.packages > 0);
+    return <span className={"performance-chip tone-" + tone}><span />{percent(value)}</span>;
+  }
+
   return (
     <section className="table-section">
       <div className="section-heading">
         <div>
-          <h2>
-            {title}
-            <span className="count-badge">{rows.length} bases</span>
-          </h2>
-          <p>Detalhamento dos indicadores da operação</p>
+          <h2>{title}<span className="count-badge">{rows.length} bases</span></h2>
+          <p>{imported ? "Colunas e ordem física preservadas da planilha" : "Detalhamento dos indicadores da operação"}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => exportCsv(filtered)}>
-          <Download />
-          Exportar CSV
-        </Button>
+        <Button variant="outline" size="sm" onClick={() => exportCsv(rowsForExport)}><Download /> Exportar CSV</Button>
       </div>
       <div className="table-toolbar">
         <div className="search-field">
           <Search size={16} />
-          <input
-            aria-label="Buscar base na tabela"
-            placeholder="Buscar base ou código..."
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(0);
-            }}
-          />
+          <input aria-label="Buscar base na tabela" placeholder="Buscar base ou código..." value={query} onChange={(event) => setQuery(event.target.value)} />
         </div>
-        <select
-          className="compact-select"
-          aria-label="Filtrar status da tabela"
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(0);
-          }}
-        >
+        <select className="compact-select" aria-label="Filtrar status da tabela" value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="all">Todos os status</option>
           <option value="success">Dentro da meta</option>
           <option value="warning">Atenção</option>
           <option value="danger">Crítico</option>
           <option value="neutral">Sem dados</option>
         </select>
-        <span className="table-scroll-hint">
-          12 indicadores <ArrowDownUp size={13} />
-        </span>
+        {sort ? (
+          <Button variant="ghost" size="sm" onClick={() => setSort(null)}><RotateCcw size={14} /> Restaurar ordem original</Button>
+        ) : <span className="table-scroll-hint">{headers.length} colunas <ArrowDownUp size={13} /></span>}
       </div>
       <div className="table-scroll">
-        <table className="data-table performance-table">
-          <thead>
-            <tr>
-              {columns.map((c) => (
-                <th key={c.key}>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setSort(c.key);
-                      setAsc(sort === c.key ? !asc : true);
-                    }}
-                    className="table-sort"
-                  >
-                    {c.label}
-                    <ArrowDownUp
-                      className={sort === c.key ? "text-primary" : "text-muted-foreground"}
-                    />
-                  </Button>
-                </th>
-              ))}
-            </tr>
-          </thead>
+        <table className={`data-table performance-table ${imported ? "imported-performance-table" : ""}`}>
+          <thead><tr>{headers.map((header, index) => {
+            const field = fields[index];
+            return <th key={header} aria-sort={sort === field ? ascending ? "ascending" : "descending" : "none"}>
+              <Button variant="ghost" onClick={() => sortBy(field)} className="table-sort">
+                {header}<ArrowDownUp className={sort === field ? "text-primary" : "text-muted-foreground"} />
+              </Button>
+            </th>;
+          })}</tr></thead>
           <tbody>
-            {filtered.slice(current * 8, (current + 1) * 8).map((r) => (
-              <tr key={r.base}>
-                {columns.map((c) => (
-                  <td key={c.key}>
-                    {c.key === "base" ? (
-                      <Link to="/bases" search={{ base: r.base }} className="base-cell">
-                        <span className="base-code">{r.base.split(" ")[0]}</span>
-                        <span>{r.base.substring(r.base.indexOf(" ") + 1)}</span>
-                      </Link>
-                    ) : c.key === "type" ? (
-                      <span className={`operation-badge ${r.type === "XPT" ? "xpt" : ""}`}>
-                        {r.type}
-                      </span>
-                    ) : ["logistics", "withoutDc", "withoutClaims"].includes(c.key) ? (
-                      <span
-                        className={`performance-chip tone-${performanceTone(r[c.key] as number | null, r.packages > 0)}`}
-                      >
-                        <span />
-                        {percent(r[c.key] as number | null)}
-                      </span>
-                    ) : (
-                      <span
-                        className={
-                          ["claims", "failures", "pnr"].includes(c.key) && Number(r[c.key]) > 0
-                            ? "text-muted-foreground"
-                            : ""
-                        }
-                      >
-                        {number(Number(r[c.key]))}
-                      </span>
-                    )}
-                  </td>
-                ))}
-              </tr>
+            {filtered.map((row) => (
+              <tr key={row.base}>{fields.map((field) => <td key={field}>{cell(row, field)}</td>)}</tr>
             ))}
-            {!filtered.length && (
-              <tr>
-                <td colSpan={12} className="text-center py-10 text-muted-foreground">
-                  Nenhuma base encontrada para os filtros.
-                </td>
-              </tr>
-            )}
+            {!filtered.length && <tr><td colSpan={headers.length} className="text-center py-10 text-muted-foreground">Nenhuma base encontrada para os filtros.</td></tr>}
           </tbody>
+          {importedDataset && (
+            <tfoot className="consolidated-row">
+              <tr>{fields.map((field) => <td key={field}>{cell(importedDataset.consolidated, field, dateText)}</td>)}</tr>
+            </tfoot>
+          )}
         </table>
       </div>
       <div className="table-pagination">
-        <span>
-          Exibindo {filtered.length ? current * 8 + 1 : 0}–
-          {Math.min((current + 1) * 8, filtered.length)} de {filtered.length} bases
-        </span>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Página anterior"
-            disabled={current === 0}
-            onClick={() => setPage(current - 1)}
-          >
-            <ChevronLeft />
-          </Button>
-          <span>
-            {current + 1} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Próxima página"
-            disabled={current === totalPages - 1}
-            onClick={() => setPage(current + 1)}
-          >
-            <ChevronRight />
-          </Button>
-        </div>
+        <span>Exibindo {filtered.length} de {rows.length} bases · Consolidado oficial no rodapé</span>
       </div>
     </section>
   );
 }
+

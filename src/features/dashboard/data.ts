@@ -19,6 +19,7 @@ export const percent = (n: number | null) =>
 export type BaseRow = {
   base: string;
   type: string;
+  date?: string;
   vehicles: number;
   packages: number;
   deliveries: number;
@@ -30,6 +31,41 @@ export type BaseRow = {
   withoutDc: number | null;
   withoutClaims: number | null;
 };
+export type DailyDataset = {
+  date: string;
+  rows: BaseRow[];
+  consolidated: BaseRow;
+  filename: string;
+  sourceRows?: string[][];
+  sourceHeaders?: string[];
+};
+const importedDatasets: DailyDataset[] = [];
+export function getImportedDatasets() {
+  return [...importedDatasets].sort((a, b) => b.date.localeCompare(a.date));
+}
+export function getImportedDataset(date: string) {
+  return importedDatasets.find((dataset) => dataset.date === date) ?? null;
+}
+export function findImportConflict(date: string, filename: string) {
+  return (
+    getImportedDataset(date) ??
+    importedDatasets.find((dataset) => dataset.filename.toLocaleLowerCase() === filename.toLocaleLowerCase()) ??
+    null
+  );
+}
+export function latestAvailableDate() {
+  return getImportedDatasets()[0]?.date ?? LATEST_DATE;
+}
+export function registerImportedDataset(dataset: DailyDataset, replace = false) {
+  const existingIndex = importedDatasets.findIndex((item) => item.date === dataset.date);
+  if (existingIndex >= 0 && !replace) return false;
+  if (existingIndex >= 0) importedDatasets.splice(existingIndex, 1);
+  importedDatasets.push(dataset);
+  if (!dates.includes(dataset.date)) dates.push(dataset.date);
+  dates.sort((a, b) => b.localeCompare(a));
+  window.dispatchEvent(new CustomEvent("dashboard:dataset-imported", { detail: latestAvailableDate() }));
+  return true;
+}
 export const columns: { key: keyof BaseRow; label: string }[] = [
   { key: "base", label: "Base/Código" },
   { key: "type", label: "Tipo de Operação" },
@@ -67,7 +103,7 @@ export const dates = Array.from(
   (_, i) => `2026-10-${String(14 - i).padStart(2, "0")}`,
 );
 export const LATEST_DATE = dates[0] ?? "2026-10-14";
-export function rowsForDate(date: string = LATEST_DATE): BaseRow[] {
+export function demoRowsForDate(date: string = LATEST_DATE): BaseRow[] {
   const offset = Math.max(0, dates.indexOf(date));
   return seeds.map(([base, type, vehicles, packages, performance], i) => {
     const p = Math.max(
@@ -95,6 +131,9 @@ export function rowsForDate(date: string = LATEST_DATE): BaseRow[] {
       withoutClaims: (deliveries / (total - dc - claims)) * 100,
     };
   });
+}
+export function rowsForDate(date: string = LATEST_DATE): BaseRow[] {
+  return getImportedDataset(date)?.rows ?? demoRowsForDate(date);
 }
 export const metricNames = {
   logistics: "Performance Logistics",
@@ -128,6 +167,14 @@ export function aggregate(rows: BaseRow[]) {
         : null,
   };
 }
+export function consolidatedRow(rows: BaseRow[]): BaseRow {
+  const totals = aggregate(rows);
+  return {
+    base: "Consolidado",
+    type: "",
+    ...totals,
+  };
+}
 export function shortDate(date: string) {
   return new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR");
 }
@@ -147,3 +194,4 @@ export function exportCsv(rows: BaseRow[]) {
   a.click();
   URL.revokeObjectURL(url);
 }
+

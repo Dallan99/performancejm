@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -9,13 +9,12 @@ import {
   ChevronRight,
   Menu,
   Upload,
-  ChevronDown,
-  ArrowUpRight,
   Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/jm-oficial.jpeg.asset.json";
 import { ImportModal } from "./import-modal";
+import { getImportedDatasets, registerImportedDataset } from "./data";
 const links = [
   { to: "/", label: "Visão Geral", icon: LayoutDashboard },
   { to: "/historico", label: "Histórico", icon: History },
@@ -27,7 +26,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [open, setOpen] = useState(false);
+  const [hasImports, setHasImports] = useState(() => getImportedDatasets().length > 0);
   const active = links.find((l) => l.to === path);
+  useEffect(() => {
+    const updateImports = () => setHasImports(getImportedDatasets().length > 0);
+    window.addEventListener("dashboard:dataset-imported", updateImports);
+    return () => window.removeEventListener("dashboard:dataset-imported", updateImports);
+  }, []);
   return (
     <div className={`dashboard-layout ${collapsed ? "is-collapsed" : ""}`}>
       {mobile && <div className="mobile-backdrop" onClick={() => setMobile(false)} />}
@@ -111,7 +116,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <div className="header-right">
             <span className="demo-badge">
               <span />
-              Dados demonstrativos
+              {hasImports ? "Importação temporária" : "Dados demonstrativos"}
             </span>
             <Button className="import-button" onClick={() => setOpen(true)}>
               <Upload />
@@ -130,7 +135,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </span>
         </footer>
       </div>
-      <ImportModal open={open} onOpenChange={setOpen} />
+      <ImportModal
+        open={open}
+        onOpenChange={setOpen}
+        onImport={(dataset, replace) => registerImportedDataset(dataset, replace)}
+      />
     </div>
   );
 }
+
