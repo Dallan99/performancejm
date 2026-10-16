@@ -58,6 +58,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
   const [base, setBase] = useState(initialBase);
   const [metric, setMetric] = useState<Metric>("logistics");
   const [modal, setModal] = useState(false);
+  const activePeriod = view === "overview" ? "day" : period;
   const importedDataset = getImportedDataset(date);
   const importHistory = getImportedDatasets();
   useEffect(() => {
@@ -70,18 +71,18 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
   }, []);
   const all = rowsForDate(date);
   const selectedDates =
-    period === "day"
+    activePeriod === "day"
       ? [date]
-      : dates.slice(dates.indexOf(date), dates.indexOf(date) + (period === "week" ? 7 : 14));
+      : dates.slice(dates.indexOf(date), dates.indexOf(date) + (activePeriod === "week" ? 7 : 14));
   const rows = all
     .filter((r) => !base || r.base === base)
     .map((r) => {
-      if (period === "day") return r;
+      if (activePeriod === "day") return r;
       const group = selectedDates.flatMap((d) => rowsForDate(d).filter((b) => b.base === r.base));
       return { ...r, ...aggregate(group) };
     });
   const totals =
-    importedDataset && period === "day" && !base
+    importedDataset && activePeriod === "day" && !base
       ? importedDataset.consolidated
       : aggregate(rows);
   const tone = performanceTone(totals[metric], totals.packages > 0);
@@ -161,10 +162,10 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
   );
   return (
     <>
-      <div className="page-heading">
+      <div className={`page-heading ${view === "overview" ? "overview-heading" : ""}`}>
         <div>
           <div className="page-eyebrow">PERFORMANCE LAST MILE</div>
-          <h1>{titles[view]}</h1>
+          <h1>{view === "overview" ? "Painel de Performance" : titles[view]}</h1>
           <p>
             {view === "overview"
               ? "Uma visão consolidada da sua operação, em um só lugar."
@@ -190,7 +191,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
       </div>
       {view !== "imports" && (
         <>
-          <section className="filter-band">
+          <section className={`filter-band ${view === "overview" ? "overview-filters" : ""}`}>
             <div className="filter-field date-filter">
               <label htmlFor="op-date">
                 <CalendarDays size={13} />
@@ -207,14 +208,16 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
                 }}
               />
             </div>
-            <div className="filter-field">
-              <label htmlFor="period">Período</label>
-              <select id="period" value={period} onChange={(e) => setPeriod(e.target.value)}>
-                <option value="day">Diário</option>
-                <option value="week">Últimos 7 dias</option>
-                <option value="fortnight">Últimos 14 dias</option>
-              </select>
-            </div>
+            {view !== "overview" && (
+              <div className="filter-field">
+                <label htmlFor="period">Período</label>
+                <select id="period" value={period} onChange={(e) => setPeriod(e.target.value)}>
+                  <option value="day">Diário</option>
+                  <option value="week">Últimos 7 dias</option>
+                  <option value="fortnight">Últimos 14 dias</option>
+                </select>
+              </div>
+            )}
             <div className="filter-field base-filter">
               <label htmlFor="base">Base operacional</label>
               <select id="base" value={base} onChange={(e) => setBase(e.target.value)}>
@@ -224,20 +227,22 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
                 ))}
               </select>
             </div>
-            <div className="filter-field indicator-filter">
-              <label htmlFor="indicator">Indicador de performance</label>
-              <select
-                id="indicator"
-                value={metric}
-                onChange={(e) => setMetric(e.target.value as Metric)}
-              >
-                {Object.entries(metricNames).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {view !== "overview" && (
+              <div className="filter-field indicator-filter">
+                <label htmlFor="indicator">Indicador de performance</label>
+                <select
+                  id="indicator"
+                  value={metric}
+                  onChange={(e) => setMetric(e.target.value as Metric)}
+                >
+                  {Object.entries(metricNames).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <Button
               variant="outline"
               className="reset-filters"
@@ -253,7 +258,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
               <RotateCw size={16} />
             </Button>
           </section>
-          <div className="results-line">
+          <div className={`results-line ${view === "overview" ? "overview-results" : ""}`}>
             <span>
               <span className="live-dot" />
               Operação de <strong>{shortDate(date)}</strong>
@@ -270,7 +275,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
       )}
       {view === "overview" && (
         <>
-          <section className="kpi-grid">
+          <section className="kpi-grid overview-kpi-grid">
             {cards.map((c) => {
               const key = {
                 Veículos: "vehicles",
@@ -282,7 +287,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
                 PNR: "pnr",
               }[c.label] as keyof typeof previous;
               const prev = Number(previous[key]);
-              const change = period === "day" && prev ? ((c.value - prev) / prev) * 100 : null;
+              const change = activePeriod === "day" && prev ? ((c.value - prev) / prev) * 100 : null;
               return (
                 <article className="kpi-card" key={c.label}>
                   <div className="kpi-label">
@@ -361,10 +366,6 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
             <span className="status-meta">
               Meta oficial: <strong>98,20%</strong>
             </span>
-          </div>
-          <div className="charts-grid">
-            <EvolutionChart points={trends} />
-            <RankingChart rows={rows} metric={metric} />
           </div>
           <PerformanceTable rows={rows} date={date} importedDataset={importedDataset} />
         </>

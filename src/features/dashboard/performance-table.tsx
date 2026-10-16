@@ -99,7 +99,7 @@ export function PerformanceTable({ rows, title = "Performance por base", date, i
         ) : <span className="table-scroll-hint">{headers.length} colunas <ArrowDownUp size={13} /></span>}
       </div>
       <div className="table-scroll">
-        <table className="data-table performance-table">
+        <table className={`data-table performance-table ${imported ? "imported-performance-table" : ""}`}>
           <thead><tr>{headers.map((header, index) => {
             const field = fields[index];
             return <th key={header} aria-sort={sort === field ? ascending ? "ascending" : "descending" : "none"}>
