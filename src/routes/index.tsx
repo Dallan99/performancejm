@@ -3,13 +3,13 @@ import { DashboardPage } from "@/features/dashboard/dashboard-page";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Visão Geral | JM Dashboard DS" },
+      { title: "Visão Geral | JM Dashboard" },
       {
         name: "description",
         content:
           "Performance Last Mile da JM Transportes: indicadores, evolução e ranking de bases.",
       },
-      { property: "og:title", content: "Visão Geral | JM Dashboard DS" },
+      { property: "og:title", content: "Visão Geral | JM Dashboard" },
       {
         property: "og:description",
         content: "Indicadores gerenciais de performance Last Mile da JM Transportes.",
