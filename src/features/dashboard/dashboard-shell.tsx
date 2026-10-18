@@ -92,7 +92,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <span className="sidebar-label">Recolher menu</span>
           </Button>
           <div className="sidebar-foot sidebar-label">
-            JM DASHBOARD DS <span>v1.0</span>
+            JM DASHBOARD <span>v1.0</span>
           </div>
         </div>
       </aside>
@@ -109,7 +109,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <Menu />
             </Button>
             <img className="header-logo" src={logo.url} alt="JM" />
-            <span className="header-name">JM Dashboard DS</span>
+            <span className="header-name">JM Dashboard</span>
             <span className="header-divider" />
             <span className="header-current">{active?.label}</span>
           </div>
@@ -131,7 +131,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <footer className="page-footer">
           <span>© 2026 JM Transportes</span>
           <span>
-            JM Dashboard DS <span className="footer-dot">·</span> Performance que move a operação.
+            JM Dashboard <span className="footer-dot">·</span> Performance que move a operação.
           </span>
         </footer>
       </div>
@@ -143,4 +143,3 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-
