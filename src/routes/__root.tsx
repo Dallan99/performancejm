@@ -79,10 +79,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "JM Dashboard" },
+      { title: "JM Dash Performance" },
       { name: "description", content: "Performance Last Mile da JM Transportes" },
       { name: "author", content: "JM Transportes" },
-      { property: "og:title", content: "JM Dashboard" },
+      { property: "og:title", content: "JM Dash Performance" },
       { property: "og:description", content: "Performance Last Mile da JM Transportes" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
