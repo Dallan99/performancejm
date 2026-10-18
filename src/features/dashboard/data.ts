@@ -47,13 +47,13 @@ export const supervisorGroups = [
   },
   {
     name: "Sergio",
-    baseCodes: ["ESP16", "ESP17", "ESP18", "SSP15"],
-    baseLabels: ["Guarujá ESP16", "São Lourenço ESP17", "Franco da Rocha ESP18", "São Vicente SSP15"],
+    baseCodes: ["ESP16", "SSP15", "ESP17", "SSP56", "ESP18", "SSP25"],
+    baseLabels: ["Guarujá ESP16 ↔ SSP15", "Embu ESP17 ↔ SSP56", "Franco da Rocha ESP18 ↔ SSP25"],
   },
   {
     name: "Juliana",
-    baseCodes: ["SSP37", "SSP38", "SSP20", "ESP15"],
-    baseLabels: ["Campinas SSP37/03", "Itupeva SSP38", "Sorocaba SSP20", "Ibiúna ESP15"],
+    baseCodes: ["SSP37", "SSP38", "SSP20", "ESP15", "SSP5"],
+    baseLabels: ["Campinas SSP37/03", "Itupeva SSP38", "Sorocaba SSP20", "Ibiúna ESP15", "Barueri SSP5"],
   },
 ] as const;
 export type SupervisorName = (typeof supervisorGroups)[number]["name"];
@@ -66,6 +66,12 @@ export function isBaseForSupervisor(base: string, supervisor: SupervisorName) {
   const group = supervisorGroups.find((item) => item.name === supervisor);
   const code = baseCode(base);
   return Boolean(code && group?.baseCodes.some((groupCode) => groupCode === code));
+}
+export function operationTypeForBase(base: string) {
+  const code = baseCode(base);
+  if (code?.startsWith("ESP")) return "XPT";
+  if (code?.startsWith("SSP")) return "Services";
+  return /\bXPT\b/i.test(base) ? "XPT" : "Services";
 }
 const importedDatasets: DailyDataset[] = [];
 export function getImportedDatasets() {
@@ -114,7 +120,7 @@ const seeds: [string, string, number, number, number][] = [
   ["ESP15 XPT Ibiúna", "XPT", 24, 2940, 98.62],
   ["SSP5 Barueri", "Services", 96, 12560, 99.34],
   ["SSP20 Sorocaba", "Services", 58, 7210, 97.85],
-  ["SSP56 XPT Embu Guaçu", "XPT", 18, 2150, 96.92],
+  ["ESP17 XPT Embu Guaçu", "XPT", 18, 2150, 96.92],
   ["ESP16 XPT Guarujá", "XPT", 21, 2460, 95.78],
   ["SSP17 ABC", "Services", 74, 9680, 98.45],
   ["SSP6 Mauá", "Services", 38, 4860, 97.62],
@@ -222,4 +228,3 @@ export function exportCsv(rows: BaseRow[]) {
   a.click();
   URL.revokeObjectURL(url);
 }
-

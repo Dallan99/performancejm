@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import type { BaseRow, DailyDataset } from "./data";
+import { operationTypeForBase, type BaseRow, type DailyDataset } from "./data";
 
 export const OFFICIAL_HEADERS = [
   "Data",
@@ -162,7 +162,7 @@ export function parseOperationalMatrix(
     const row: BaseRow = {
       date: rowDate ?? undefined,
       base,
-      type: /\bXPT\b/i.test(base) ? "XPT" : "Services",
+      type: operationTypeForBase(base),
       vehicles: numeric(at("vehicles")) ?? 0,
       packages: numeric(at("packages")) ?? 0,
       deliveries: numeric(at("deliveries")) ?? 0,
