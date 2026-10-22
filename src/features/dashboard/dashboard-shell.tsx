@@ -31,7 +31,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const updateImports = () => setHasImports(getImportedDatasets().length > 0);
     window.addEventListener("dashboard:dataset-imported", updateImports);
-    return () => window.removeEventListener("dashboard:dataset-imported", updateImports);
+    window.addEventListener("dashboard:dataset-removed", updateImports);
+    return () => {
+      window.removeEventListener("dashboard:dataset-imported", updateImports);
+      window.removeEventListener("dashboard:dataset-removed", updateImports);
+    };
   }, []);
   return (
     <div className={`dashboard-layout ${collapsed ? "is-collapsed" : ""}`}>
@@ -143,3 +147,4 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
