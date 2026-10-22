@@ -21,8 +21,19 @@ import {
   ArrowRight,
   Upload,
   Info,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   LATEST_DATE,
   dates,
@@ -30,6 +41,7 @@ import {
   getImportedDatasets,
   latestAvailableDate,
   registerImportedDataset,
+  removeImportedDataset,
   rowsForDate,
   aggregate,
   metricNames,
@@ -64,20 +76,31 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
   const [supervisorName, setSupervisorName] = useState<SupervisorName | "">("");
   const [metric, setMetric] = useState<Metric>("logistics");
   const [modal, setModal] = useState(false);
+  const [importHistory, setImportHistory] = useState(getImportedDatasets);
+  const [pendingDelete, setPendingDelete] = useState<DailyDataset | null>(null);
   const activePeriod = view === "overview" ? "day" : period;
   const importedDataset = getImportedDataset(date);
-  const importHistory = getImportedDatasets();
   const activeSupervisor = view === "overview"
     ? supervisorGroups.find((group) => group.name === supervisorName)
     : undefined;
   useEffect(() => {
     const syncLatest = (event: Event) => {
       const importedDate = (event as CustomEvent<string>).detail;
+      setImportHistory(getImportedDatasets());
       if (importedDate) setDate(importedDate);
     };
+    const syncRemoved = (event: Event) => {
+      const { date: removedDate, latestDate } = (event as CustomEvent<{ date: string; latestDate: string }>).detail;
+      setImportHistory(getImportedDatasets());
+      if (date === removedDate) setDate(latestDate);
+    };
     window.addEventListener("dashboard:dataset-imported", syncLatest);
-    return () => window.removeEventListener("dashboard:dataset-imported", syncLatest);
-  }, []);
+    window.addEventListener("dashboard:dataset-removed", syncRemoved);
+    return () => {
+      window.removeEventListener("dashboard:dataset-imported", syncLatest);
+      window.removeEventListener("dashboard:dataset-removed", syncRemoved);
+    };
+  }, [date]);
   const all = rowsForDate(date);
   const matchingRows = (source: BaseRow[]) =>
     source.filter(
@@ -618,7 +641,7 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
                     <th>Registros</th>
                     <th>Status</th>
                     <th>Responsável</th>
-                    <th>Modelo</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -648,6 +671,15 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
                         >
                           <Download />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={"Excluir importação " + d.filename}
+                          title="Excluir esta importação"
+                          onClick={() => setPendingDelete(d)}
+                        >
+                          <Trash2 className="text-danger" />
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -658,6 +690,35 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
               </table>
             </div>
           </section>
+          <AlertDialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir esta planilha importada?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação remove somente os dados desta sessão do navegador e não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              {pendingDelete && (
+                <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                  <p><strong>Arquivo:</strong> {pendingDelete.filename}</p>
+                  <p><strong>Data operacional:</strong> {shortDate(pendingDelete.date)}</p>
+                  <p><strong>Bases afetadas:</strong> {pendingDelete.rows.length}</p>
+                </div>
+              )}
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => {
+                    if (pendingDelete) removeImportedDataset(pendingDelete.date);
+                    setPendingDelete(null);
+                  }}
+                >
+                  Excluir importação
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <div className="imports-notice">
             <Info size={16} />
             As importações ficam somente na memória desta sessão do navegador e desaparecem quando
@@ -678,4 +739,5 @@ export function DashboardPage({ view, initialBase = "" }: { view: View; initialB
     </>
   );
 }
+
 
