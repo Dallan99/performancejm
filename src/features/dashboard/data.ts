@@ -100,6 +100,21 @@ export function registerImportedDataset(dataset: DailyDataset, replace = false) 
   window.dispatchEvent(new CustomEvent("dashboard:dataset-imported", { detail: latestAvailableDate() }));
   return true;
 }
+export function removeImportedDataset(date: string) {
+  const existingIndex = importedDatasets.findIndex((item) => item.date === date);
+  if (existingIndex < 0) return null;
+  const [removed] = importedDatasets.splice(existingIndex, 1);
+  if (removed && !demoDates.includes(date)) {
+    const dateIndex = dates.indexOf(date);
+    if (dateIndex >= 0) dates.splice(dateIndex, 1);
+  }
+  window.dispatchEvent(
+    new CustomEvent("dashboard:dataset-removed", {
+      detail: { date, latestDate: latestAvailableDate() },
+    }),
+  );
+  return removed ?? null;
+}
 export const columns: { key: keyof BaseRow; label: string }[] = [
   { key: "base", label: "Base/Código" },
   { key: "type", label: "Tipo de Operação" },
@@ -132,10 +147,11 @@ const seeds: [string, string, number, number, number][] = [
   ["SSP25 Atibaia", "Services", 29, 3460, 98.53],
   ["ESP18 Franco da Rocha", "XPT", 23, 2820, 96.81],
 ];
-export const dates = Array.from(
+const demoDates = Array.from(
   { length: 14 },
   (_, i) => `2026-10-${String(14 - i).padStart(2, "0")}`,
 );
+export const dates = [...demoDates];
 export const LATEST_DATE = dates[0] ?? "2026-10-14";
 export function demoRowsForDate(date: string = LATEST_DATE): BaseRow[] {
   const offset = Math.max(0, dates.indexOf(date));
@@ -228,3 +244,4 @@ export function exportCsv(rows: BaseRow[]) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
