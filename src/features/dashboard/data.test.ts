@@ -1,5 +1,17 @@
-import { describe, it, expect } from "vitest";
-import { performanceTone, aggregate, rowsForDate, LATEST_DATE, columns } from "./data";
+import { describe, it, expect, vi } from "vitest";
+import {
+  performanceTone,
+  aggregate,
+  rowsForDate,
+  LATEST_DATE,
+  columns,
+  dates,
+  findImportConflict,
+  getImportedDataset,
+  latestAvailableDate,
+  registerImportedDataset,
+  removeImportedDataset,
+} from "./data";
 import { parseDailyCsv } from "./csv";
 describe("Official performance thresholds", () => {
   it.each([
@@ -45,3 +57,28 @@ describe("Daily CSV preview", () => {
       ).errors,
     ).toEqual([]));
 });
+
+describe("Imported dataset removal", () => {
+  it("removes only the selected import and notifies subscribers", () => {
+    const date = "2025-10-13";
+    const filename = "Dash 13.10.xlsx";
+    const rows = rowsForDate(LATEST_DATE).slice(0, 1);
+    registerImportedDataset({ date, filename, rows, consolidated: aggregate(rows) });
+    const listener = vi.fn();
+    window.addEventListener("dashboard:dataset-removed", listener);
+
+    const removed = removeImportedDataset(date);
+
+    expect(removed?.filename).toBe(filename);
+    expect(getImportedDataset(date)).toBeNull();
+    expect(findImportConflict(date, filename)).toBeNull();
+    expect(latestAvailableDate()).toBe(LATEST_DATE);
+    expect(dates).not.toContain(date);
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({ detail: { date, latestDate: LATEST_DATE } }),
+    );
+    expect(removeImportedDataset(date)).toBeNull();
+    window.removeEventListener("dashboard:dataset-removed", listener);
+  });
+});
+
